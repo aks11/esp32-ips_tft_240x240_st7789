@@ -1,0 +1,29 @@
+{
+    "configurations": [
+        {
+            "name": "ESP32-Win",
+            "includePath": [
+                "${workspaceFolder}/**",
+                "E:/Espressif/msys32/opt/xtensa-esp32-elf/lib/gcc/xtensa-esp32-elf/5.2.0/include/**",
+                "E:/Espressif/msys32/opt/xtensa-esp32-elf/lib/gcc/xtensa-esp32-elf/5.2.0/include-fixed/**",
+                "E:/Espressif/msys32/opt/xtensa-esp32-elf/xtensa-esp32-elf/include/**",
+                "E:/Espressif/msys32/opt/xtensa-esp32-elf/xtensa-esp32-elf/sysroot/usr/include/**",
+                "E:/Espressif/msys32/home/aks/esp/esp-idf/components/**"
+            ],
+            "browse": {
+                "path": [
+                    "${workspaceFolder}/**",
+                    "E:/Espressif/msys32/opt/xtensa-esp32-elf/lib/gcc/xtensa-esp32-elf/5.2.0/include/**",
+                    "E:/Espressif/msys32/opt/xtensa-esp32-elf/lib/gcc/xtensa-esp32-elf/5.2.0/include-fixed/**",
+                    "E:/Espressif/msys32/opt/xtensa-esp32-elf/xtensa-esp32-elf/include/**",
+                    "E:/Espressif/msys32/opt/xtensa-esp32-elf/xtensa-esp32-elf/sysroot/usr/include/**",    
+                    "E:/Espressif/msys32/home/aks/esp/esp-idf/components/**"
+                ],
+                "limitSymbolsToIncludedHeaders": true,
+                "databaseFilename": "${workspaceFolder}/.vscode/browse.vc.db"
+            },            
+            "intelliSenseMode": "clang-x64"
+        }
+    ],
+    "version": 4
+}
