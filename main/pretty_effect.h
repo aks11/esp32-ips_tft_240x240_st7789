@@ -2,6 +2,7 @@
 #include <stdint.h>
 #include "esp_err.h"
 
+#include "decode_image.h"
 
 /**
  * @brief Calculate the effect for a bunch of lines.
@@ -11,7 +12,7 @@
  * @param frame Current frame, used for animation
  * @param linect Amount of lines to calculate
  */
-void pretty_effect_calc_lines(uint16_t *dest, int line, int frame, int linect);
+void pretty_effect_calc_lines(pixel_s *dest, int line, int frame, int linect);
 
 
 /**

@@ -16,6 +16,7 @@
 #include "soc/gpio_struct.h"
 #include "driver/gpio.h"
 
+#include "decode_image.h"
 #include "pretty_effect.h"
 
 /*
@@ -40,7 +41,7 @@
 
 //To speed up transfers, every SPI transfer sends a bunch of lines. This define specifies how many. More means more memory use,
 //but less overhead for setting up / finishing transfers. Make sure 240 is dividable by this.
-#define PARALLEL_LINES 16
+#define PARALLEL_LINES 4
 
 /*
  The LCD needs a bunch of command/argument values to be initialized. They are stored in this struct.
@@ -59,10 +60,10 @@ typedef enum {
 
 //Place data into DRAM. Constant data gets placed into DROM by default, which is not accessible by DMA.
 DRAM_ATTR static const lcd_init_cmd_t st_init_cmds[]={
-    /* Memory Data Access Control, MX=MV=1, MY=ML=MH=0, RGB=0 */
+    /* Memory Data Access Control, MX=MV=0, MY=ML=MH=0, RGB=0 */
     {0x36, {0}, 1},
-    /* Interface Pixel Format, 16bits/pixel for RGB/MCU interface */
-    {0x3A, {0x55}, 1},
+    /* Interface Pixel Format, 18bits/pixel for RGB/MCU interface */
+    {0x3A, {0x66}, 1},
     /* Porch Setting */
     {0xB2, {0x0c, 0x0c, 0x00, 0x33, 0x33}, 5},
     /* Gate Control, Vgh=13.65V, Vgl=-10.43V */
@@ -87,6 +88,10 @@ DRAM_ATTR static const lcd_init_cmd_t st_init_cmds[]={
     {0xE1, {0xD0, 0x00, 0x05, 0x0D, 0x0C, 0x06, 0x2D, 0x44, 0x40, 0x0E, 0x1C, 0x18, 0x16, 0x19}, 14},
     /* Sleep Out */
     {0x11, {0}, 0x80},
+    /* Display Inversion OFF */
+ //   {0x20, {0}, 0x80},
+    /* Display Inversion ON */
+    {0x21, {0}, 0x80},
     /* Display On */
     {0x29, {0}, 0x80},
     {0, {0}, 0xff}
@@ -162,7 +167,7 @@ void lcd_init(spi_device_handle_t spi)
 
     //Send all the commands
     while (lcd_init_cmds[cmd].databytes!=0xff) {
-        lcd_cmd(spi, lcd_init_cmds[cmd].cmd);        
+        lcd_cmd(spi, lcd_init_cmds[cmd].cmd);
         if (lcd_init_cmds[cmd].databytes&0x80) {
             vTaskDelay(100 / portTICK_RATE_MS);
         } else {
@@ -184,7 +189,7 @@ void lcd_init(spi_device_handle_t spi)
  * sent faster (compared to calling spi_device_transmit several times), and at
  * the mean while the lines for next transactions can get calculated.
  */
-static void send_lines(spi_device_handle_t spi, int ypos, uint16_t *linedata)
+static void send_lines(spi_device_handle_t spi, int ypos, pixel_s *linedata)
 {
     esp_err_t ret;
     int x;
@@ -219,7 +224,7 @@ static void send_lines(spi_device_handle_t spi, int ypos, uint16_t *linedata)
     trans[3].tx_data[3]=(ypos+PARALLEL_LINES)&0xff;  //end page low
     trans[4].tx_data[0]=0x2C;           //memory write
     trans[5].tx_buffer=linedata;        //finally send the line data
-    trans[5].length=240*2*8*PARALLEL_LINES;          //Data length, in bits
+    trans[5].length=240*sizeof(pixel_s)*8*PARALLEL_LINES;          //Data length, in bits
     trans[5].flags=0; //undo SPI_TRANS_USE_TXDATA flag
 
     //Queue all transactions.
@@ -253,17 +258,17 @@ static void send_line_finish(spi_device_handle_t spi)
 //while the previous one is being sent.
 static void display_pretty_colors(spi_device_handle_t spi)
 {
-    uint16_t *lines[2];
+    pixel_s *lines[2];
     //Allocate memory for the pixel buffers
     for (int i=0; i<2; i++) {
-        lines[i]=heap_caps_malloc(240*PARALLEL_LINES*sizeof(uint16_t), MALLOC_CAP_DMA);
+        lines[i]=heap_caps_malloc(240*PARALLEL_LINES*sizeof(pixel_s), MALLOC_CAP_DMA);
         assert(lines[i]!=NULL);
     }
     int frame=0;
     //Indexes of the line currently being sent to the LCD and the line we're calculating.
     int sending_line=-1;
     int calc_line=0;
-    
+
     while(1) {
         frame++;
         for (int y=0; y<240; y+=PARALLEL_LINES) {
@@ -301,7 +306,6 @@ void app_main()
 #else
         .clock_speed_hz=10*1000*1000,           //Clock out at 10 MHz
 #endif
-        /*.flags=SPI_DEVICE_HALFDUPLEX|SPI_DEVICE_3WIRE,*/
         .mode=3,                                //SPI mode 3
         .spics_io_num=-1,                       //CS pin
         .queue_size=7,                          //We want to be able to queue 7 transactions at a time

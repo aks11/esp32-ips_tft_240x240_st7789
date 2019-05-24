@@ -27,11 +27,6 @@ format if you want to use a different image file.
 //Reference the binary-included jpeg file
 extern const uint8_t image_jpg_start[]   asm("_binary_image_jpg_start");
 extern const uint8_t image_jpg_end[]     asm("_binary_image_jpg_end");
-//Define the height and width of the jpeg file. Make sure this matches the actual jpeg
-//dimensions.
-#define IMAGE_W 240
-#define IMAGE_H 240
-
 
 const char *TAG="ImageDec";
 
@@ -40,7 +35,7 @@ const char *TAG="ImageDec";
 typedef struct {
     const unsigned char *inData;	//Pointer to jpeg data
     int inPos;						//Current position in jpeg data
-    uint16_t **outData;				//Array of IMAGE_H pointers to arrays of IMAGE_W 16-bit pixel values
+    pixel_s **outData;				//Array of IMAGE_H pointers to arrays of IMAGE_W 16-bit pixel values
     int outW;						//Width of the resulting file
     int outH;						//Height of the resulting file
 } JpegDev;
@@ -62,16 +57,14 @@ static UINT outfunc(JDEC *decoder, void *bitmap, JRECT *rect)
 {
     JpegDev *jd=(JpegDev*)decoder->device;
     uint8_t *in=(uint8_t*)bitmap;
+
     for (int y=rect->top; y<=rect->bottom; y++) {
         for (int x=rect->left; x<=rect->right; x++) {
-            //We need to convert the 3 bytes in `in` to a rgb565 value.
-            uint16_t v=0;
-            v|=((in[0]>>3)<<11);
-            v|=((in[1]>>2)<<5);
-            v|=((in[2]>>3)<<0);
-            //The LCD wants the 16-bit value in big-endian, so swap bytes
-            v=(v>>8)|(v<<8);
-            jd->outData[y][x]=v;
+
+            jd->outData[y][x].red = in[0];
+            jd->outData[y][x].green = in[1];
+            jd->outData[y][x].blue = in[2];
+
             in+=3;
         }
     }
@@ -82,7 +75,7 @@ static UINT outfunc(JDEC *decoder, void *bitmap, JRECT *rect)
 #define WORKSZ 3100
 
 //Decode the embedded image into pixel lines that can be used with the rest of the logic.
-esp_err_t decode_image(uint16_t ***pixels) 
+esp_err_t decode_image(pixel_s ***pixels) 
 {
     char *work=NULL;
     int r;
@@ -93,14 +86,14 @@ esp_err_t decode_image(uint16_t ***pixels)
 
 
     //Alocate pixel memory. Each line is an array of IMAGE_W 16-bit pixels; the `*pixels` array itself contains pointers to these lines.
-    *pixels=calloc(IMAGE_H, sizeof(uint16_t*));
+    *pixels=calloc(IMAGE_H, sizeof(pixel_s*));
     if (*pixels==NULL) {
         ESP_LOGE(TAG, "Error allocating memory for lines");
         ret=ESP_ERR_NO_MEM;
         goto err;
     }
     for (int i=0; i<IMAGE_H; i++) {
-        (*pixels)[i]=malloc(IMAGE_W*sizeof(uint16_t));
+        (*pixels)[i]=malloc(IMAGE_W*sizeof(pixel_s));
         if ((*pixels)[i]==NULL) {
             ESP_LOGE(TAG, "Error allocating memory for line %d", i);
             ret=ESP_ERR_NO_MEM;
